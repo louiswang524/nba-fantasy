@@ -1,4 +1,4 @@
-import { openai } from './openai';
+import { chat } from './llm';
 import { Persona, Message, Purpose } from '@/types';
 
 const PURPOSE_PROMPTS: Record<Purpose, string> = {
@@ -39,13 +39,10 @@ ${personas.map(p => `- ${p.name} (${p.title}): ${p.perspective}`).join('\n')}`;
     ? `Start the discussion about "${topic}". Provide an opening statement.`
     : `Continue the discussion. Respond to the latest messages:\n${context}`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage },
-    ],
-  });
+  const response = await chat([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userMessage },
+  ]);
 
-  return response.choices[0]?.message?.content || 'I need to think about this more.';
+  return response.content || 'I need to think about this more.';
 }

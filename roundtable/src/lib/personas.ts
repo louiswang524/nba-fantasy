@@ -1,4 +1,4 @@
-import { openai } from './openai';
+import { chat, getProvider } from './llm';
 import { Persona, Purpose } from '@/types';
 
 const PERSPECTIVES: Persona['perspective'][] = ['optimist', 'skeptic', 'realist', 'researcher', 'practitioner', 'critic'];
@@ -10,6 +10,7 @@ function getRandomPerspectives(count: number): Persona['perspective'][] {
 
 export async function generatePersonas(topic: string, purpose: Purpose, count: number = 4): Promise<Persona[]> {
   const perspectives = getRandomPerspectives(count);
+  const provider = getProvider();
   
   const systemPrompt = `You are a persona generator. Generate ${count} diverse expert personas for discussing "${topic}" with purpose "${purpose}".
   
@@ -21,18 +22,16 @@ Return a JSON array with exactly ${count} personas. Each persona must have:
 - expertise: array of 2-3 expertise areas
 - perspective: one of: ${perspectives.join(', ')}
 
-Generate diverse, realistic personas that would have genuine influence in "${topic}".`;
+Generate diverse, realistic personas that would have genuine influence in "${topic}". ${
+    provider === 'gemini' ? 'IMPORTANT: Output ONLY valid JSON, no markdown formatting.' : ''
+  }`;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Generate personas for topic: ${topic}` },
-    ],
-    response_format: { type: 'json_object' },
-  });
+  const response = await chat([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Generate personas for topic: ${topic}` },
+  ]);
 
-  const content = response.choices[0]?.message?.content;
+  const content = response.content;
   if (!content) {
     throw new Error('Failed to generate personas');
   }
