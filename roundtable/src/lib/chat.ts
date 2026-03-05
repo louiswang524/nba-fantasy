@@ -14,8 +14,7 @@ export async function generateDiscussionTurn(
   messages: Message[],
   respondingPersona: Persona
 ): Promise<string> {
-: Persona
-):  const purposePrompt = PURPOSE_PROMPTS[purpose];
+  const purposePrompt = PURPOSE_PROMPTS[purpose];
   
   const recentMessages = messages.slice(-6);
   

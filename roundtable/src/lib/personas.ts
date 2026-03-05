@@ -1,7 +1,7 @@
 import { openai } from './openai';
 import { Persona, Purpose } from '@/types';
 
-const PERSPECTIVES = ['optimist', 'skeptic', 'realist', 'researcher', 'practitioner', 'critic'];
+const PERSPECTIVES: Persona['perspective'][] = ['optimist', 'skeptic', 'realist', 'researcher', 'practitioner', 'critic'];
 
 function getRandomPerspectives(count: number): Persona['perspective'][] {
   const shuffled = [...PERSPECTIVES].sort(() => 0.5 - Math.random());
