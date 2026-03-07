@@ -14,6 +14,7 @@ export interface Message {
   role: 'persona' | 'user' | 'guest';
   personaId?: string;
   personaName?: string;
+  perspective?: string;
   content: string;
   timestamp: number;
 }
