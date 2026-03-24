@@ -1,0 +1,10 @@
+yahoo_oauth==2.1.1
+nba_api==1.4.1
+google-genai>=1.0.0
+requests==2.31.0
+pandas==2.1.4
+matplotlib==3.8.2
+python-dotenv==1.0.0
+jupyter==1.0.0
+pytest==7.4.3
+pytest-mock==3.12.0
