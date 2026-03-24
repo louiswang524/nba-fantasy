@@ -67,7 +67,6 @@ def classify_categories(my: dict, opp: dict, margin: float = 0.05) -> dict:
 
 
 def trade_category_delta(
-    roster: list[dict],
     give_stats: list[dict],
     receive_stats: list[dict],
     games_remaining: int,

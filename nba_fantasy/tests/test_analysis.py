@@ -60,12 +60,8 @@ def test_classify_categories():
     assert result["AST"] == "tossup"
 
 def test_trade_category_delta():
-    roster = [
-        {"name": "A", "injury_status": "", "games_remaining": 3,
-         "stats": {"season": {"PTS": 20.0, "REB": 5.0, "GP": 50}, "last_15": {"PTS": 30.0, "REB": 3.0, "GP": 15}}},
-    ]
     give_stats = [{"season": {"PTS": 20.0, "REB": 5.0, "GP": 50}, "last_15": {"PTS": 30.0, "REB": 3.0, "GP": 15}}]
     receive_stats = [{"season": {"PTS": 5.0, "REB": 10.0, "GP": 50}, "last_15": {"PTS": 6.0, "REB": 12.0, "GP": 15}}]
-    delta = trade_category_delta(roster, give_stats, receive_stats, games_remaining=3)
+    delta = trade_category_delta(give_stats, receive_stats, games_remaining=3)
     assert delta["PTS"] < 0   # losing points
     assert delta["REB"] > 0   # gaining rebounds
