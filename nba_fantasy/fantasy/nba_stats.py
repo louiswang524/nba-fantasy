@@ -65,7 +65,7 @@ def get_player_stats(player_name: str) -> dict | None:
 
         return {"season": season, "last_15": last_15}
 
-    return cached_call(f"stats_{player_id}", NBA_TTL, fetch)
+    return cached_call(f"stats_{player_id}_{_current_season()}", NBA_TTL, fetch)
 
 def get_games_this_week(team_abbr: str, week_start: str, week_end: str) -> int:
     """
@@ -89,4 +89,4 @@ def get_games_this_week(team_abbr: str, week_start: str, week_end: str) -> int:
         team_games = df[df["TEAM_ABBREVIATION"] == team_abbr.upper()]
         return int(len(team_games))
 
-    return cached_call(f"schedule_{team_abbr}_{week_start}_{week_end}", NBA_TTL, fetch)
+    return cached_call(f"schedule_{season}_{team_abbr}_{week_start}_{week_end}", NBA_TTL, fetch)
