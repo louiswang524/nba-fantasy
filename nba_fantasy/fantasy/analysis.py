@@ -8,8 +8,8 @@ def blend_stats(season: dict, last_15: dict) -> dict:
     result = {}
     for col in STAT_COLS:
         s = season.get(col, 0.0)
-        l = last_15.get(col, 0.0)
-        result[col] = s * 0.3 + l * 0.7
+        recent = last_15.get(col, 0.0)
+        result[col] = s * 0.3 + recent * 0.7
     return result
 
 
@@ -51,8 +51,8 @@ def classify_categories(my: dict, opp: dict, margin: float = 0.05) -> dict:
     For TOV, lower is better (inverted).
     """
     result = {}
-    for col in my:
-        m, o = my[col], opp[col]
+    for col in my:  # iterate caller-supplied keys (supports full STAT_COLS or subset)
+        m, o = my.get(col, 0.0), opp.get(col, 0.0)
         total = (m + o) / 2 if (m + o) > 0 else 1
         diff = (m - o) / total
         if col == "TOV":
