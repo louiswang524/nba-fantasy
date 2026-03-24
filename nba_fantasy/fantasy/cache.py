@@ -11,7 +11,7 @@ _DEFAULT_CACHE_DIR = Path(__file__).parent.parent / "cache"
 
 def _cache_dir() -> Path:
     d = Path(os.environ.get("CACHE_DIR", str(_DEFAULT_CACHE_DIR)))
-    d.mkdir(exist_ok=True)
+    d.mkdir(parents=True, exist_ok=True)
     return d
 
 def _cache_path(key: str) -> Path:
@@ -30,5 +30,5 @@ def cached_call(key: str, ttl: int, fetch_fn: Callable[[], Any]) -> Any:
     # Atomic write: write to temp file then rename
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(entry))
-    tmp.rename(path)
+    os.replace(tmp, path)  # atomic on both POSIX and Windows
     return data
