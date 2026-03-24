@@ -1,3 +1,4 @@
+import logging
 import os
 from dotenv import load_dotenv
 import google.genai as genai
@@ -5,6 +6,7 @@ import google.genai as genai
 load_dotenv()
 
 MODEL = "gemini-2.0-flash"
+logger = logging.getLogger(__name__)
 
 def ask_gemini(prompt: str) -> str:
     """Send a prompt to Gemini and return the response text."""
@@ -14,7 +16,7 @@ def ask_gemini(prompt: str) -> str:
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(model=MODEL, contents=prompt)
     if not response.text:
-        print(f"Raw Gemini response: {response}")
+        logger.warning("Gemini returned empty response: %s", response)
         raise ValueError("Gemini returned empty or malformed response")
     return response.text
 
@@ -27,7 +29,7 @@ def build_matchup_prompt(
     lines.append(f"{'Category':<8} {'My Team':>10} {'Opponent':>10} {'Status':>10}")
     lines.append("-" * 42)
     for cat in my_proj:
-        lines.append(f"{cat:<8} {my_proj[cat]:>10.1f} {opp_proj[cat]:>10.1f} {classification.get(cat, '?'):>10}")
+        lines.append(f"{cat:<8} {my_proj[cat]:>10.1f} {opp_proj.get(cat, 0.0):>10.1f} {classification.get(cat, '?'):>10}")
     lines.append("\nProvide a concise weekly strategy: which categories to focus on winning, which to punt, and 2-3 specific streaming/lineup actions to swing toss-up categories.")
     return "\n".join(lines)
 

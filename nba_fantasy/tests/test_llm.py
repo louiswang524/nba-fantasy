@@ -1,6 +1,6 @@
 # tests/test_llm.py
-import pytest
 from unittest.mock import MagicMock, patch
+import pytest
 from fantasy.llm import build_matchup_prompt, build_start_sit_prompt, ask_gemini
 
 def test_build_matchup_prompt_contains_categories():
@@ -31,3 +31,18 @@ def test_ask_gemini_returns_text(monkeypatch):
     with patch("fantasy.llm.genai.Client", return_value=mock_client):
         result = ask_gemini("Test prompt")
     assert result == "Start LeBron, sit Embiid."
+
+def test_ask_gemini_raises_on_missing_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
+        ask_gemini("test")
+
+def test_ask_gemini_raises_on_empty_response(monkeypatch):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = ""
+    mock_client.models.generate_content.return_value = mock_response
+    monkeypatch.setenv("GEMINI_API_KEY", "fake_key")
+    with patch("fantasy.llm.genai.Client", return_value=mock_client):
+        with pytest.raises(ValueError, match="empty or malformed"):
+            ask_gemini("test")
