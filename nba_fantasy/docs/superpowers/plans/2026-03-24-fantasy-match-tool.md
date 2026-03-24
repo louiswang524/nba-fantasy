@@ -47,7 +47,7 @@
 - [ ] **Step 1: Create requirements.txt**
 
 ```
-yahoo_oauth==1.3.1
+yahoo_oauth==2.1.1
 nba_api==1.4.1
 google-genai>=1.0.0
 requests==2.31.0

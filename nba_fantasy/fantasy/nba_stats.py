@@ -1,5 +1,6 @@
 import time
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from fantasy.cache import cached_call
 
@@ -86,6 +87,21 @@ def get_player_stats(player_name: str) -> dict | None:
                 time.sleep(3 * (attempt + 1))
 
     return cached_call(f"stats_{player_id}_{_current_season()}", NBA_TTL, fetch_with_retry)
+
+def batch_get_player_stats(players: list[dict], max_workers: int = 4) -> list[dict]:
+    """
+    Fetch stats for a list of player dicts in parallel.
+    Each dict must have 'name'. Returns the same list with 'stats' added.
+    """
+    def fetch_one(p):
+        return {**p, "stats": get_player_stats(p["name"])}
+
+    results = [None] * len(players)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(fetch_one, p): i for i, p in enumerate(players)}
+        for future in as_completed(futures):
+            results[futures[future]] = future.result()
+    return results
 
 def get_games_this_week(team_abbr: str, week_start: str, week_end: str) -> int:
     """
