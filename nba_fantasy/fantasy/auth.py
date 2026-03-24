@@ -1,21 +1,24 @@
 import json
 import os
+import requests
 from pathlib import Path
 from dotenv import load_dotenv
 from yahoo_oauth import OAuth2
 
 load_dotenv()
 
-CREDENTIALS_FILE = "credentials.json"
+# Anchored to project root regardless of working directory
+CREDENTIALS_FILE = str(Path(__file__).parent.parent / "credentials.json")
 
 def get_oauth() -> OAuth2:
     """Return an authenticated Yahoo OAuth2 session, refreshing token if needed."""
     if not Path(CREDENTIALS_FILE).exists():
         # First-time setup: write a minimal credentials file for yahoo_oauth
-        creds = {
-            "consumer_key": os.environ["YAHOO_CLIENT_ID"],
-            "consumer_secret": os.environ["YAHOO_CLIENT_SECRET"],
-        }
+        client_id = os.environ.get("YAHOO_CLIENT_ID", "")
+        client_secret = os.environ.get("YAHOO_CLIENT_SECRET", "")
+        if not client_id or not client_secret:
+            raise EnvironmentError("YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET must be set in .env")
+        creds = {"consumer_key": client_id, "consumer_secret": client_secret}
         Path(CREDENTIALS_FILE).write_text(json.dumps(creds))
     oauth = OAuth2(None, None, from_file=CREDENTIALS_FILE)
     if not oauth.token_is_valid():
@@ -24,7 +27,6 @@ def get_oauth() -> OAuth2:
 
 def discover_leagues() -> None:
     """Print all leagues and teams for the authenticated user."""
-    import requests
     oauth = get_oauth()
     url = "https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nba/leagues?format=json"
     resp = requests.get(url, headers={"Authorization": f"Bearer {oauth.access_token}"})
@@ -37,6 +39,7 @@ def discover_leagues() -> None:
         print(f"League: {league['name']}  key={league['league_key']}")
         teams_url = f"https://fantasysports.yahooapis.com/fantasy/v2/league/{league['league_key']}/teams?format=json"
         tr = requests.get(teams_url, headers={"Authorization": f"Bearer {oauth.access_token}"})
+        tr.raise_for_status()
         teams = tr.json()["fantasy_content"]["league"][1]["teams"]
         for j in range(teams["count"]):
             team = teams[str(j)]["team"][0]
