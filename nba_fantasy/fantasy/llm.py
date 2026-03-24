@@ -46,10 +46,16 @@ def build_start_sit_prompt(players: list[dict]) -> str:
 def build_waiver_prompt(free_agents: list[dict], my_weaknesses: list[str]) -> str:
     lines = [f"You are a fantasy basketball analyst. My team is weak in: {', '.join(my_weaknesses)}.\n"]
     lines.append("Top available free agents scored against my needs:\n")
-    lines.append(f"{'Rank':<5} {'Player':<22} {'Pos':<6} {'Games Left':<12} {'Fit Score':<10}")
-    lines.append("-" * 58)
+    lines.append(f"{'Rank':<5} {'Player':<22} {'Pos':<6} {'G':<3} {'FitScore':<10} {'PTS':<6} {'REB':<6} {'AST':<6} {'3PM':<6} {'STL':<6} {'BLK':<6} {'TO':<6}")
+    lines.append("-" * 85)
     for i, p in enumerate(free_agents[:20], 1):
-        lines.append(f"{i:<5} {p['name']:<22} {p.get('position',''):<6} {p.get('games_remaining',0):<12} {p.get('fit_score',0):<10.2f}")
+        proj = p.get("projected", {})
+        lines.append(
+            f"{i:<5} {p['name']:<22} {p.get('position',''):<6} {p.get('games_remaining',0):<3} "
+            f"{p.get('fit_score',0):<10.2f} {proj.get('PTS',0):<6.1f} {proj.get('REB',0):<6.1f} "
+            f"{proj.get('AST',0):<6.1f} {proj.get('FG3M',0):<6.1f} {proj.get('STL',0):<6.1f} "
+            f"{proj.get('BLK',0):<6.1f} {proj.get('TOV',0):<6.1f}"
+        )
     lines.append("\nRecommend the top 5 pickups with one sentence of reasoning each.")
     return "\n".join(lines)
 

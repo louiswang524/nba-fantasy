@@ -18,7 +18,7 @@ def injury_multiplier(status: str) -> float:
     if status in ("OUT", "INJ"):
         return 0.0
     if status in ("GTD", "Q"):
-        return 0.5
+        return 0.75
     return 1.0
 
 
@@ -38,7 +38,7 @@ def project_team_categories(players: list[dict]) -> dict:
     for p in players:
         if p.get("stats") is None:
             continue
-        proj = project_player(p["stats"], p["games_remaining"], p.get("injury_status", ""))
+        proj = project_player(p["stats"], p["games_remaining"], p.get("status", ""))
         for col in STAT_COLS:
             totals[col] += proj[col]
     return totals

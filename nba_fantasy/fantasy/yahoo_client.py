@@ -7,7 +7,6 @@ from fantasy.cache import cached_call
 load_dotenv()
 
 LEAGUE_KEY = os.environ.get("YAHOO_LEAGUE_KEY", "")
-TEAM_KEY = os.environ.get("YAHOO_TEAM_KEY", "")
 BASE = "https://fantasysports.yahooapis.com/fantasy/v2"
 YAHOO_TTL = 15 * 60  # 15 minutes
 DEFAULT_CATEGORIES = ["PTS", "REB", "AST", "STL", "BLK", "TOV", "FG%", "FT%", "3PTM"]
@@ -19,6 +18,30 @@ def _get(path: str) -> dict:
     resp = requests.get(url, headers={"Authorization": f"Bearer {oauth.access_token}"})
     resp.raise_for_status()
     return resp.json()["fantasy_content"]
+
+def _get_my_team_key() -> str:
+    """Auto-discover the current user's team key in the league via Yahoo login."""
+    explicit = os.environ.get("YAHOO_TEAM_KEY", "")
+    if explicit:
+        return explicit
+    data = _get(f"/league/{LEAGUE_KEY}/teams")
+    teams = data["league"][1]["teams"]
+    for i in range(teams["count"]):
+        team = teams[str(i)]["team"]
+        info = {k: v for d in team[0] for k, v in (d.items() if isinstance(d, dict) else {}.items())}
+        managers = info.get("managers", [])
+        for m in managers:
+            if m.get("manager", {}).get("is_current_login") == "1":
+                return info["team_key"]
+    raise RuntimeError("Could not find your team in the league. Set YAHOO_TEAM_KEY in .env manually.")
+
+_MY_TEAM_KEY: str | None = None
+
+def _team_key() -> str:
+    global _MY_TEAM_KEY
+    if _MY_TEAM_KEY is None:
+        _MY_TEAM_KEY = _get_my_team_key()
+    return _MY_TEAM_KEY
 
 def _parse_player(p: list) -> dict:
     """Parse a Yahoo player list into a flat dict."""
@@ -36,15 +59,15 @@ def _parse_player(p: list) -> dict:
 def get_my_roster() -> list[dict]:
     """Return list of player dicts on my roster with stats and injury status."""
     def fetch():
-        data = _get(f"/team/{TEAM_KEY}/roster")
+        data = _get(f"/team/{_team_key()}/roster")
         players = data["team"][1]["roster"]["0"]["players"]
         return [_parse_player(players[str(i)]["player"]) for i in range(players["count"])]
-    return cached_call(f"roster_{TEAM_KEY}", YAHOO_TTL, fetch)
+    return cached_call(f"roster_{_team_key()}", YAHOO_TTL, fetch)
 
 def get_current_matchup() -> dict:
     """Return current week matchup: my team + opponent team key, week start/end dates."""
     def fetch():
-        data = _get(f"/team/{TEAM_KEY}/matchups")
+        data = _get(f"/team/{_team_key()}/matchups")
         matchups = data["team"][1]["matchups"]
         # Find the current week matchup (midevent = in progress, preevent = upcoming)
         for i in range(matchups["count"]):
@@ -52,7 +75,7 @@ def get_current_matchup() -> dict:
             if m.get("status") in ("midevent", "preevent"):
                 teams = m["0"]["teams"]
                 team_keys = [teams[str(j)]["team"][0][0]["team_key"] for j in range(2)]
-                opp_key = [k for k in team_keys if k != TEAM_KEY][0]
+                opp_key = [k for k in team_keys if k != _team_key()][0]
                 return {
                     "week": m.get("week"),
                     "week_start": m.get("week_start"),
@@ -60,7 +83,7 @@ def get_current_matchup() -> dict:
                     "opponent_team_key": opp_key,
                 }
         raise RuntimeError("No current matchup found")
-    return cached_call(f"matchup_{TEAM_KEY}", YAHOO_TTL, fetch)
+    return cached_call(f"matchup_{_team_key()}", YAHOO_TTL, fetch)
 
 def get_roster_by_team(team_key: str) -> list[dict]:
     """Return roster for any team (used to fetch opponent's roster)."""
