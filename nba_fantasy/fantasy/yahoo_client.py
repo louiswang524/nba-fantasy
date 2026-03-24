@@ -20,23 +20,25 @@ def _get(path: str) -> dict:
     resp.raise_for_status()
     return resp.json()["fantasy_content"]
 
+def _parse_player(p: list) -> dict:
+    """Parse a Yahoo player list into a flat dict."""
+    info = {item: val for d in p[0] for item, val in (d.items() if isinstance(d, dict) else {}.items())}
+    name_field = info.get("name", "")
+    name = name_field.get("full", "") if isinstance(name_field, dict) else name_field
+    return {
+        "name": name,
+        "player_key": info.get("player_key", ""),
+        "team_abbr": info.get("editorial_team_abbr", ""),
+        "status": info.get("status", ""),  # INJ/GTD/OUT/Q/D or ""
+        "position": info.get("display_position", ""),
+    }
+
 def get_my_roster() -> list[dict]:
     """Return list of player dicts on my roster with stats and injury status."""
     def fetch():
-        data = _get(f"/team/{TEAM_KEY}/roster;out=stats,percent_owned")
+        data = _get(f"/team/{TEAM_KEY}/roster")
         players = data["team"][1]["roster"]["0"]["players"]
-        result = []
-        for i in range(players["count"]):
-            p = players[str(i)]["player"]
-            info = {item: val for d in p[0] for item, val in (d.items() if isinstance(d, dict) else {}.items())}
-            result.append({
-                "name": info.get("full_name", ""),
-                "player_key": info.get("player_key", ""),
-                "team_abbr": info.get("editorial_team_abbr", ""),
-                "status": info.get("status", ""),  # INJ/GTD/OUT/Q/D or ""
-                "position": info.get("display_position", ""),
-            })
-        return result
+        return [_parse_player(players[str(i)]["player"]) for i in range(players["count"])]
     return cached_call(f"roster_{TEAM_KEY}", YAHOO_TTL, fetch)
 
 def get_current_matchup() -> dict:
@@ -44,10 +46,10 @@ def get_current_matchup() -> dict:
     def fetch():
         data = _get(f"/team/{TEAM_KEY}/matchups")
         matchups = data["team"][1]["matchups"]
-        # Find the current week matchup (is_current == 1)
+        # Find the current week matchup (midevent = in progress, preevent = upcoming)
         for i in range(matchups["count"]):
             m = matchups[str(i)]["matchup"]
-            if m.get("is_current") == "1" or m.get("is_current") == 1:
+            if m.get("status") in ("midevent", "preevent"):
                 teams = m["0"]["teams"]
                 team_keys = [teams[str(j)]["team"][0][0]["team_key"] for j in range(2)]
                 opp_key = [k for k in team_keys if k != TEAM_KEY][0]
@@ -63,20 +65,9 @@ def get_current_matchup() -> dict:
 def get_roster_by_team(team_key: str) -> list[dict]:
     """Return roster for any team (used to fetch opponent's roster)."""
     def fetch():
-        data = _get(f"/team/{team_key}/roster;out=stats")
+        data = _get(f"/team/{team_key}/roster")
         players = data["team"][1]["roster"]["0"]["players"]
-        result = []
-        for i in range(players["count"]):
-            p = players[str(i)]["player"]
-            info = {item: val for d in p[0] for item, val in (d.items() if isinstance(d, dict) else {}.items())}
-            result.append({
-                "name": info.get("full_name", ""),
-                "player_key": info.get("player_key", ""),
-                "team_abbr": info.get("editorial_team_abbr", ""),
-                "status": info.get("status", ""),
-                "position": info.get("display_position", ""),
-            })
-        return result
+        return [_parse_player(players[str(i)]["player"]) for i in range(players["count"])]
     return cached_call(f"roster_{team_key}", YAHOO_TTL, fetch)
 
 def get_free_agents(count: int = 50) -> list[dict]:
@@ -86,15 +77,7 @@ def get_free_agents(count: int = 50) -> list[dict]:
         players = data["league"][1]["players"]
         result = []
         for i in range(players["count"]):
-            p = players[str(i)]["player"]
-            info = {item: val for d in p[0] for item, val in (d.items() if isinstance(d, dict) else {}.items())}
-            result.append({
-                "name": info.get("full_name", ""),
-                "player_key": info.get("player_key", ""),
-                "team_abbr": info.get("editorial_team_abbr", ""),
-                "status": info.get("status", ""),
-                "position": info.get("display_position", ""),
-            })
+            result.append(_parse_player(players[str(i)]["player"]))
         return result
     return cached_call(f"free_agents_{LEAGUE_KEY}", YAHOO_TTL, fetch)
 

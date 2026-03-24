@@ -1,4 +1,5 @@
 import time
+import unicodedata
 from datetime import date
 from fantasy.cache import cached_call
 
@@ -14,14 +15,23 @@ def _current_season() -> str:
         return f"{year}-{str(year + 1)[-2:]}"
     return f"{year - 1}-{str(year)[-2:]}"
 
+def _normalize(name: str) -> str:
+    """Strip accents and lowercase for fuzzy name matching."""
+    return unicodedata.normalize("NFD", name).encode("ascii", "ignore").decode().lower()
+
 def get_player_id(player_name: str) -> int | None:
-    """Look up NBA player ID by full name."""
+    """Look up NBA player ID by full name, with accent-insensitive fallback."""
     from nba_api.stats.static import players
     matches = players.find_players_by_full_name(player_name)
-    if not matches:
-        print(f"Warning: player not found in nba_api: {player_name}")
-        return None
-    return matches[0]["id"]
+    if matches:
+        return matches[0]["id"]
+    # Fallback: strip accents and search all players
+    normalized = _normalize(player_name)
+    for p in players.get_players():
+        if _normalize(p["full_name"]) == normalized:
+            return p["id"]
+    print(f"Warning: player not found in nba_api: {player_name}")
+    return None
 
 def get_player_stats(player_name: str) -> dict | None:
     """
@@ -48,24 +58,34 @@ def get_player_stats(player_name: str) -> dict | None:
             row = df.iloc[0]
             return {col: float(row[col]) if col in df.columns else 0.0 for col in STAT_COLS}
 
-        time.sleep(0.6)
+        time.sleep(1.5)
         season_dash = playerdashboardbygeneralsplits.PlayerDashboardByGeneralSplits(
             player_id=player_id,
-            timeout=30,
+            timeout=60,
         )
         season = extract_row(season_dash)
 
-        time.sleep(0.6)
+        time.sleep(1.5)
         last15_dash = playerdashboardbygeneralsplits.PlayerDashboardByGeneralSplits(
             player_id=player_id,
             last_n_games=15,
-            timeout=30,
+            timeout=60,
         )
         last_15 = extract_row(last15_dash)
 
         return {"season": season, "last_15": last_15}
 
-    return cached_call(f"stats_{player_id}_{_current_season()}", NBA_TTL, fetch)
+    def fetch_with_retry():
+        for attempt in range(3):
+            try:
+                return fetch()
+            except Exception as e:
+                if attempt == 2:
+                    print(f"Warning: failed to fetch stats for {player_name} after 3 attempts: {e}")
+                    return None
+                time.sleep(3 * (attempt + 1))
+
+    return cached_call(f"stats_{player_id}_{_current_season()}", NBA_TTL, fetch_with_retry)
 
 def get_games_this_week(team_abbr: str, week_start: str, week_end: str) -> int:
     """
@@ -78,12 +98,12 @@ def get_games_this_week(team_abbr: str, week_start: str, week_end: str) -> int:
     season = _current_season()
 
     def fetch():
-        time.sleep(0.6)
+        time.sleep(1.5)
         log = leaguegamelog.LeagueGameLog(
             season=season,
             date_from_nullable=week_start,
             date_to_nullable=week_end,
-            timeout=30,
+            timeout=60,
         )
         df = log.get_data_frames()[0]
         team_games = df[df["TEAM_ABBREVIATION"] == team_abbr.upper()]
