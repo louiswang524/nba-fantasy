@@ -1,5 +1,4 @@
 import os
-import time
 import requests
 from dotenv import load_dotenv
 from fantasy.auth import get_oauth
@@ -11,6 +10,7 @@ LEAGUE_KEY = os.environ.get("YAHOO_LEAGUE_KEY", "")
 TEAM_KEY = os.environ.get("YAHOO_TEAM_KEY", "")
 BASE = "https://fantasysports.yahooapis.com/fantasy/v2"
 YAHOO_TTL = 15 * 60  # 15 minutes
+DEFAULT_CATEGORIES = ["PTS", "REB", "AST", "STL", "BLK", "TOV", "FG%", "FT%", "3PTM"]
 
 def _get(path: str) -> dict:
     """Make an authenticated GET request to Yahoo Fantasy API."""
@@ -71,6 +71,7 @@ def get_roster_by_team(team_key: str) -> list[dict]:
             info = {item: val for d in p[0] for item, val in (d.items() if isinstance(d, dict) else {}.items())}
             result.append({
                 "name": info.get("full_name", ""),
+                "player_key": info.get("player_key", ""),
                 "team_abbr": info.get("editorial_team_abbr", ""),
                 "status": info.get("status", ""),
                 "position": info.get("display_position", ""),
@@ -89,14 +90,13 @@ def get_free_agents(count: int = 50) -> list[dict]:
             info = {item: val for d in p[0] for item, val in (d.items() if isinstance(d, dict) else {}.items())}
             result.append({
                 "name": info.get("full_name", ""),
+                "player_key": info.get("player_key", ""),
                 "team_abbr": info.get("editorial_team_abbr", ""),
                 "status": info.get("status", ""),
                 "position": info.get("display_position", ""),
             })
         return result
     return cached_call(f"free_agents_{LEAGUE_KEY}", YAHOO_TTL, fetch)
-
-DEFAULT_CATEGORIES = ["PTS", "REB", "AST", "STL", "BLK", "TOV", "FG%", "FT%", "3PTM"]
 
 def get_league_categories() -> list[str]:
     """
