@@ -107,6 +107,37 @@ export function ChatInterface({
     return personaId;
   };
 
+  const streamSummary = async (): Promise<void> => {
+    const res = await fetch('/api/summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    });
+
+    if (!res.ok || !res.body) return;
+
+    const summaryId = `msg-summary-${Date.now()}`;
+
+    setMessages(prev => [...prev, {
+      id: summaryId,
+      role: 'summary' as const,
+      content: '',
+      timestamp: Date.now(),
+    }]);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      setMessages(prev => prev.map(m =>
+        m.id === summaryId ? { ...m, content: m.content + chunk } : m
+      ));
+    }
+  };
+
   const startDiscussion = async () => {
     setIsLoading(true);
     for (let i = 0; i < turns; i++) {
@@ -116,6 +147,11 @@ export function ChatInterface({
         console.error('Error:', error);
         break;
       }
+    }
+    try {
+      await streamSummary();
+    } catch (error) {
+      console.error('Error generating summary:', error);
     }
     setIsLoading(false);
   };
