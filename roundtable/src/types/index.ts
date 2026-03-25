@@ -11,7 +11,7 @@ export interface Persona {
 
 export interface Message {
   id: string;
-  role: 'persona' | 'user' | 'guest';
+  role: 'persona' | 'user' | 'guest' | 'summary';
   personaId?: string;
   personaName?: string;
   perspective?: string;

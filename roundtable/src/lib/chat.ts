@@ -73,3 +73,36 @@ export async function generateDiscussionTurnStream(
     { role: 'user', content: userMessage },
   ]);
 }
+
+export async function generateSummaryStream(
+  topic: string,
+  personas: Persona[],
+  messages: Message[],
+  language: 'en' | 'zh' = 'en'
+): Promise<ReadableStream<Uint8Array>> {
+  const transcript = messages
+    .filter(m => m.role === 'persona' || m.role === 'guest')
+    .map(m => `${m.role === 'guest' ? 'Guest' : m.personaName}: ${m.content}`)
+    .join('\n\n');
+
+  let systemPrompt = `You are summarizing a roundtable discussion about "${topic}".
+
+The participants were:
+${personas.map(p => `- ${p.name} (${p.title}, ${p.perspective})`).join('\n')}
+
+Write a concise summary (3-5 paragraphs) that covers:
+1. The main themes and arguments raised
+2. Key points of agreement and disagreement between participants
+3. Any conclusions or insights that emerged
+
+Write in a neutral, journalistic voice.`;
+
+  if (language === 'zh') {
+    systemPrompt += '\nRespond entirely in Simplified Chinese (简体中文).';
+  }
+
+  return chatStream([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Here is the discussion transcript:\n\n${transcript}` },
+  ]);
+}
