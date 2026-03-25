@@ -3,21 +3,21 @@
 import { useState } from 'react';
 import { TopicForm } from '@/components/TopicForm';
 import { ChatInterface } from '@/components/ChatInterface';
-import { Persona, Purpose, Session } from '@/types';
+import { Purpose, Session } from '@/types';
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [turns, setTurns] = useState<number>(12);
 
-  const handleStart = async (topic: string, purpose: Purpose, people: string[], turns: number) => {
+  const handleStart = async (topic: string, purpose: Purpose, people: string[], turns: number, language: 'en' | 'zh') => {
     setTurns(turns);
     setIsLoading(true);
     try {
       const res = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, purpose, people }),
+        body: JSON.stringify({ topic, purpose, people, language }),
       });
 
       const data = await res.json();
@@ -45,6 +45,7 @@ export default function Home() {
       initialPersonas={session.personas}
       onNewTopic={handleNewTopic}
       turns={turns}
+      language={session.language}
     />
   );
 }

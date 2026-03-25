@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Purpose } from '@/types';
 
 interface TopicFormProps {
-  onSubmit: (topic: string, purpose: Purpose, people: string[], turns: number) => void;
+  onSubmit: (topic: string, purpose: Purpose, people: string[], turns: number, language: 'en' | 'zh') => void;
   isLoading: boolean;
 }
 
@@ -13,6 +13,7 @@ export function TopicForm({ onSubmit, isLoading }: TopicFormProps) {
   const [purpose, setPurpose] = useState<Purpose>('learning');
   const [peopleInput, setPeopleInput] = useState('');
   const [turns, setTurns] = useState<number>(12);
+  const [language, setLanguage] = useState<'en' | 'zh'>('en');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +22,7 @@ export function TopicForm({ onSubmit, isLoading }: TopicFormProps) {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-      onSubmit(topic.trim(), purpose, people, turns);
+      onSubmit(topic.trim(), purpose, people, turns, language);
     }
   };
 
@@ -69,6 +70,29 @@ export function TopicForm({ onSubmit, isLoading }: TopicFormProps) {
               className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent focus:bg-white/10 transition-all duration-200"
               disabled={isLoading}
             />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-300 mb-3">
+              Language
+            </label>
+            <div className="flex gap-3">
+              {(['en', 'zh'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setLanguage(lang)}
+                  disabled={isLoading}
+                  className={`py-3 px-6 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    language === lang
+                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {lang === 'en' ? 'EN' : '中文'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="mb-6">

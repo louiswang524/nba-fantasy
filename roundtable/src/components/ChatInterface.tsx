@@ -13,6 +13,7 @@ interface ChatInterfaceProps {
   initialPersonas: Persona[];
   onNewTopic: () => void;
   turns: number;
+  language: 'en' | 'zh';
 }
 
 export function ChatInterface({
@@ -22,6 +23,7 @@ export function ChatInterface({
   initialPersonas,
   onNewTopic,
   turns,
+  language,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +49,7 @@ export function ChatInterface({
   useEffect(() => {
     setIsMuted(false);
     if (!tts.isSupported()) return;
-    tts.assignVoices(initialPersonas.length).then((voices) => {
+    tts.assignVoices(initialPersonas.length, language).then((voices) => {
       voicesRef.current = voices;
     });
     return () => {

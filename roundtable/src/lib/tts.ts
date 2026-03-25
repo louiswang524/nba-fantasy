@@ -22,11 +22,13 @@ export function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
-export async function assignVoices(count: number): Promise<SpeechSynthesisVoice[]> {
+export async function assignVoices(count: number, language: 'en' | 'zh' = 'en'): Promise<SpeechSynthesisVoice[]> {
   if (!isSupported()) return [];
   const all = await loadVoices();
-  const english = all.filter(v => v.lang.startsWith('en'));
-  const pool = english.length >= count ? english : all;
+  const filtered = all.filter(v =>
+    language === 'zh' ? v.lang.startsWith('zh') : v.lang.startsWith('en')
+  );
+  const pool = filtered.length >= count ? filtered : (all.length > 0 ? all : []);
   if (pool.length === 0) return [];
   // Space selections evenly across the pool for maximum variety
   return Array.from({ length: count }, (_, i) =>
