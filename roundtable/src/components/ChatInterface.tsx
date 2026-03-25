@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Message, Persona, Purpose } from '@/types';
 import { MessageBubble } from './MessageBubble';
 import { SidePanel } from './SidePanel';
+import * as tts from '@/lib/tts';
 
 interface ChatInterfaceProps {
   sessionId: string;
@@ -26,6 +27,8 @@ export function ChatInterface({
   const [isLoading, setIsLoading] = useState(false);
   const [personas, setPersonas] = useState<Persona[]>(initialPersonas);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const [isMuted, setIsMuted] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,18 +44,29 @@ export function ChatInterface({
     }
   }, [sessionId]);
 
-  const streamTurn = async (guestMessage?: string) => {
+  useEffect(() => {
+    setIsMuted(false);
+    if (!tts.isSupported()) return;
+    tts.assignVoices(initialPersonas.length).then((voices) => {
+      voicesRef.current = voices;
+    });
+    return () => {
+      tts.cancel();
+    };
+  }, [sessionId]);
+
+  const streamTurn = async (guestMessage?: string): Promise<string> => {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, guestMessage: guestMessage || null }),
     });
 
-    if (!res.ok || !res.body) return;
+    if (!res.ok || !res.body) return '';
 
     const personaId = res.headers.get('X-Persona-Id') || '';
     const personaName = res.headers.get('X-Persona-Name') || '';
-    const personaTitle = res.headers.get('X-Persona-Title') || '';
+    // personaTitle header exists but is not used — omit to avoid noUnusedLocals error
     const personaPerspective = res.headers.get('X-Persona-Perspective') || '';
     const messageId = res.headers.get('X-Message-Id') || `msg-${Date.now()}`;
 
@@ -69,15 +83,26 @@ export function ChatInterface({
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
+    let fullContent = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
+      fullContent += chunk;
       setMessages(prev => prev.map(m =>
         m.id === messageId ? { ...m, content: m.content + chunk } : m
       ));
     }
+
+    // Speak after full content is received (natural sentence boundaries)
+    if (!isMuted && fullContent) {
+      const personaIdx = personas.findIndex(p => p.id === personaId);
+      const voice = voicesRef.current[personaIdx >= 0 ? personaIdx : 0];
+      tts.speak(fullContent, voice);
+    }
+
+    return personaId;
   };
 
   const startDiscussion = async () => {
@@ -121,12 +146,28 @@ export function ChatInterface({
               <h1 className="text-2xl font-bold text-white">{topic}</h1>
               <p className="text-sm text-violet-400 mt-1">{getPurposeLabel(purpose)}</p>
             </div>
-            <button
-              onClick={onNewTopic}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-all duration-200 border border-white/10 hover:border-white/20"
-            >
-              + New Discussion
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (isMuted) {
+                    setIsMuted(false);
+                  } else {
+                    setIsMuted(true);
+                    tts.cancel();
+                  }
+                }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-all duration-200 border border-white/10 hover:border-white/20"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? '🔇' : '🔊'}
+              </button>
+              <button
+                onClick={onNewTopic}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-all duration-200 border border-white/10 hover:border-white/20"
+              >
+                + New Discussion
+              </button>
+            </div>
           </div>
           <div className="mt-4 flex items-center gap-3">
             <span className="text-slate-400 text-sm">Experts:</span>
