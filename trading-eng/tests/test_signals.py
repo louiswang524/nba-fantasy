@@ -207,3 +207,40 @@ def test_mean_reversion_overbought_fires():
 def test_mean_reversion_no_fire_on_flat(flat_df):
     signal = MeanReversionSignal()
     assert signal.check("AAPL", flat_df) is None
+
+
+from signals.fundamental.earnings_alert import EarningsAlertSignal
+from unittest.mock import patch
+
+
+def make_simple_df(n: int = 10) -> pd.DataFrame:
+    close = np.linspace(100, 105, n)
+    idx = pd.date_range("2024-01-01", periods=n, freq="D")
+    return pd.DataFrame({"close": close}, index=idx)
+
+
+def test_earnings_alert_fires_when_upcoming():
+    signal = EarningsAlertSignal()
+    with patch("signals.fundamental.earnings_alert.get_upcoming_earnings",
+               return_value={"AAPL": "2026-04-01"}):
+        signal._upcoming = None  # force reload
+        with patch.dict("os.environ", {"ALPHA_VANTAGE_KEY": "fake_key"}):
+            result = signal.check("AAPL", make_simple_df())
+    assert result is not None
+    assert result.direction == "neutral"
+    assert result.signal_name == "Pre-Earnings Alert"
+
+
+def test_earnings_alert_no_fire_when_not_upcoming():
+    signal = EarningsAlertSignal()
+    signal._upcoming = {}
+    result = signal.check("GOOG", make_simple_df())
+    assert result is None
+
+
+def test_earnings_alert_no_fire_without_api_key():
+    signal = EarningsAlertSignal()
+    signal._upcoming = None
+    with patch.dict("os.environ", {}, clear=True):
+        result = signal.check("AAPL", make_simple_df())
+    assert result is None
