@@ -162,3 +162,48 @@ def test_intraday_momentum_requires_min_rows():
 def test_intraday_momentum_time_horizon():
     signal = IntradayMomentumSignal()
     assert signal.time_horizon == "intraday"
+
+
+from signals.quant.mean_reversion import MeanReversionSignal
+
+
+def make_mean_reversion_df(direction: str = "oversold"):
+    """90 bars: price gap moves 2+ std devs from 20-day mean with RSI extreme and low vol."""
+    n = 90
+    if direction == "oversold":
+        # 80 flat bars at 100, then 9 at 100, then 1 gap down to 80
+        # This creates extreme zscore with low CV
+        base = np.full(89, 100.0)
+        tail = np.array([80.0])
+    else:
+        # 80 flat bars at 100, then 9 at 100, then 1 gap up to 120
+        base = np.full(89, 100.0)
+        tail = np.array([120.0])
+
+    close = np.concatenate([base, tail])
+    volume = np.full(n, 1_000_000)
+    idx = pd.date_range("2024-01-01", periods=n, freq="D")
+    return pd.DataFrame({"open": close*0.99, "high": close*1.01,
+                          "low": close*0.97, "close": close, "volume": volume}, index=idx)
+
+
+def test_mean_reversion_oversold_fires():
+    signal = MeanReversionSignal()
+    df = make_mean_reversion_df("oversold")
+    result = signal.check("AAPL", df)
+    assert result is not None
+    assert result.direction == "bullish"
+    assert result.signal_name == "Mean Reversion Setup"
+
+
+def test_mean_reversion_overbought_fires():
+    signal = MeanReversionSignal()
+    df = make_mean_reversion_df("overbought")
+    result = signal.check("AAPL", df)
+    assert result is not None
+    assert result.direction == "bearish"
+
+
+def test_mean_reversion_no_fire_on_flat(flat_df):
+    signal = MeanReversionSignal()
+    assert signal.check("AAPL", flat_df) is None
