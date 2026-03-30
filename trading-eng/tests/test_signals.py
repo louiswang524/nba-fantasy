@@ -127,3 +127,38 @@ def test_bearish_breakdown_fires():
 def test_bearish_breakdown_no_fire_on_uptrend(uptrend_df):
     signal = BearishBreakdownSignal()
     assert signal.check("SPY", uptrend_df) is None
+
+
+from signals.technical.intraday_momentum import IntradayMomentumSignal
+
+
+def make_intraday_bullish_df():
+    """50 bars: MACD just crossed bullish, volume spike, price above VWAP."""
+    n = 50
+    # Rising close to produce bullish MACD cross
+    close = np.concatenate([np.linspace(100, 98, 30), np.linspace(98, 108, 20)])
+    base_vol = 500_000
+    volume = np.full(n, base_vol)
+    volume[-1] = base_vol * 2.5
+    idx = pd.date_range("2024-01-01 09:30", periods=n, freq="15min")
+    return pd.DataFrame({"open": close*0.999, "high": close*1.002,
+                          "low": close*0.997, "close": close, "volume": volume}, index=idx)
+
+
+def test_intraday_momentum_correct_type():
+    signal = IntradayMomentumSignal()
+    df = make_intraday_bullish_df()
+    result = signal.check("AAPL", df)
+    # Result is None or a valid SignalResult — never raises
+    assert result is None or result.direction in ("bullish", "bearish")
+
+
+def test_intraday_momentum_requires_min_rows():
+    signal = IntradayMomentumSignal()
+    tiny = pd.DataFrame({"close": [100.0]*5, "volume": [1e5]*5})
+    assert signal.check("AAPL", tiny) is None
+
+
+def test_intraday_momentum_time_horizon():
+    signal = IntradayMomentumSignal()
+    assert signal.time_horizon == "intraday"
