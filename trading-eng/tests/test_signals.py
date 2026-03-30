@@ -57,3 +57,73 @@ def test_overbought_confluence_fires(overbought_df):
 def test_overbought_confluence_no_fire_on_flat(flat_df):
     signal = OverboughtConfluenceSignal()
     assert signal.check("TSLA", flat_df) is None
+
+
+from signals.technical.breakout_confluence import BullishBreakoutSignal, BearishBreakdownSignal
+import numpy as np, pandas as pd
+
+
+def make_golden_cross_df():
+    """260 bars: 50 MA just crossed above 200 MA, volume spike, price at 52w high."""
+    n = 260
+    # Create a scenario where MA50 crosses above MA200 on the last bar:
+    # First 200 bars at 100 (establishes baseline), crash to 80, stay flat, then recover to 130
+    base_part = np.full(200, 100.0)
+    crash_start = np.linspace(100, 80, 10)
+    low_part = np.full(10, 80.0)
+    recover_part = np.linspace(80, 130, 40)
+    close = np.concatenate([base_part, crash_start, low_part, recover_part])
+
+    base_vol = 1_000_000
+    volume = np.full(n, base_vol)
+    volume[-1] = base_vol * 2.5
+    idx = pd.date_range("2023-01-01", periods=n, freq="D")
+    return pd.DataFrame({"open": close*0.99, "high": close*1.01,
+                          "low": close*0.98, "close": close, "volume": volume}, index=idx)
+
+
+def make_death_cross_df():
+    """260 bars: 50 MA just crossed below 200 MA, volume spike, price at 52w low."""
+    n = 260
+    # Create a scenario where MA50 crosses below MA200 on the last bar:
+    # First 208 bars at 120 (establishes baseline), stable 50 bars, spike to 130, then crash to 50
+    base_part = np.full(208, 120.0)
+    stable_part = np.full(50, 120.0)
+    spike_bar = np.array([130.0])
+    crash_bar = np.array([50.0])
+    close = np.concatenate([base_part, stable_part, spike_bar, crash_bar])
+
+    base_vol = 1_000_000
+    volume = np.full(n, base_vol)
+    volume[-1] = base_vol * 2.5
+    idx = pd.date_range("2023-01-01", periods=n, freq="D")
+    return pd.DataFrame({"open": close*0.99, "high": close*1.01,
+                          "low": close*0.98, "close": close, "volume": volume}, index=idx)
+
+
+def test_bullish_breakout_fires():
+    signal = BullishBreakoutSignal()
+    df = make_golden_cross_df()
+    result = signal.check("SPY", df)
+    assert result is not None
+    assert result.direction == "bullish"
+    assert result.signal_name == "Bullish Breakout"
+
+
+def test_bullish_breakout_no_fire_on_downtrend(downtrend_df):
+    signal = BullishBreakoutSignal()
+    assert signal.check("SPY", downtrend_df) is None
+
+
+def test_bearish_breakdown_fires():
+    signal = BearishBreakdownSignal()
+    df = make_death_cross_df()
+    result = signal.check("SPY", df)
+    assert result is not None
+    assert result.direction == "bearish"
+    assert result.signal_name == "Bearish Breakdown"
+
+
+def test_bearish_breakdown_no_fire_on_uptrend(uptrend_df):
+    signal = BearishBreakdownSignal()
+    assert signal.check("SPY", uptrend_df) is None
