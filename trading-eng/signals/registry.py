@@ -21,3 +21,13 @@ def get_registered_signals() -> dict[str, Type[BaseSignal]]:
 def get_signal(name: str) -> Type[BaseSignal] | None:
     """Get a registered signal class by name."""
     return _SIGNAL_REGISTRY.get(name)
+
+
+def get_signals() -> list[BaseSignal]:
+    """Return instantiated list of all registered signals."""
+    return [cls() for cls in _SIGNAL_REGISTRY.values()]
+
+
+def _clear_registry() -> None:
+    """Clear the registry (for testing only)."""
+    _SIGNAL_REGISTRY.clear()
