@@ -1,0 +1,22 @@
+universe:
+  sp500: true
+  etfs: ["SPY", "QQQ", "IWM", "GLD", "TLT"]
+  crypto: ["BTC-USD", "ETH-USD", "SOL-USD"]
+  watchlist: []
+
+timeframes:
+  intraday: "15m"
+  swing: "1d"
+  position: "1wk"
+
+cache_ttl_minutes:
+  "15m": 15
+  "1d": 1440
+  "1wk": 1440
+
+signals:
+  rsi_oversold_threshold: 32
+  rsi_overbought_threshold: 68
+  volume_spike_multiplier: 2.0
+  zscore_threshold: 2.0
+  earnings_days_ahead: 3
