@@ -11,3 +11,10 @@ __pycache__/
 venv/
 .pytest_cache/
 *.egg-info/
+
+# Trading engine artifacts
+trading-eng/trading_engine.log
+trading-eng/state/fired_signals.json
+trading-eng/cache/*.parquet
+trading-eng/cache/earnings_calendar.json
+trading-eng/.env
