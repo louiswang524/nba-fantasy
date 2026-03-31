@@ -1,4 +1,5 @@
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 import logging
 import pandas as pd
@@ -9,6 +10,9 @@ from signals.technical.regime_gate import RegimeStatus
 
 logger = logging.getLogger(__name__)
 
+# Evaluate this many tickers in parallel
+_SCREENER_WORKERS = 16
+
 
 class Screener:
     def run(
@@ -17,40 +21,55 @@ class Screener:
         regime: Optional[RegimeStatus],
     ) -> list[SignalResult]:
         """
-        Iterate all (ticker, signal) pairs.
-        Suppresses bullish swing/position signals during DOWNTREND regime.
-        Suppresses bearish swing/position signals during UPTREND regime.
+        Evaluate all registered signals across all tickers in parallel.
 
         Args:
             data: {ticker → OHLCV DataFrame}
-            regime: detected market regime (RegimeStatus or None)
+            regime: detected market regime
 
         Returns:
-            list of SignalResult for all triggered signals
+            list of SignalResult for all triggered (non-suppressed) signals
         """
-        results: list[SignalResult] = []
         signals = get_signals()
+        eligible = {t: df for t, df in data.items() if not df.empty and len(df) >= 5}
 
-        for ticker, df in data.items():
-            if df.empty or len(df) < 5:
-                continue
-            for signal in signals:
-                try:
-                    result = signal.check(ticker, df)
-                except Exception as e:
-                    logger.warning(f"Signal {signal.__class__.__name__} failed on {ticker}: {e}")
-                    continue
-
-                if result is None:
-                    continue
-
-                if _is_suppressed(result, regime):
-                    logger.debug(f"Suppressed {result.signal_name} for {ticker} (regime={regime})")
-                    continue
-
-                results.append(result)
+        results: list[SignalResult] = []
+        with ThreadPoolExecutor(max_workers=_SCREENER_WORKERS) as pool:
+            futures = {
+                pool.submit(_evaluate_ticker, ticker, df, signals, regime): ticker
+                for ticker, df in eligible.items()
+            }
+            for future in as_completed(futures):
+                ticker_results = future.result()
+                results.extend(ticker_results)
 
         return results
+
+
+def _evaluate_ticker(
+    ticker: str,
+    df: pd.DataFrame,
+    signals: list,
+    regime: Optional[RegimeStatus],
+) -> list[SignalResult]:
+    """Evaluate all signals for a single ticker. Designed to run in a thread."""
+    results = []
+    for signal in signals:
+        try:
+            result = signal.check(ticker, df)
+        except Exception as e:
+            logger.warning(f"Signal {signal.__class__.__name__} failed on {ticker}: {e}")
+            continue
+
+        if result is None:
+            continue
+
+        if _is_suppressed(result, regime):
+            logger.debug(f"Suppressed {result.signal_name} for {ticker} (regime={regime})")
+            continue
+
+        results.append(result)
+    return results
 
 
 def _is_suppressed(result: SignalResult, regime: Optional[RegimeStatus]) -> bool:
