@@ -73,8 +73,16 @@ def _evaluate_ticker(
 
 
 def _is_suppressed(result: SignalResult, regime: Optional[RegimeStatus]) -> bool:
-    """Suppress swing/position signals that conflict with market regime."""
+    """
+    Suppress swing/position signals that conflict with market regime.
+
+    Exception: "strong" signals bypass the gate — extreme oversold in a downtrend
+    (or extreme overbought in an uptrend) can still be valid counter-trend plays.
+    "moderate" signals are suppressed because they lack the conviction to fight the trend.
+    """
     if regime is None or result.time_horizon == "intraday":
+        return False
+    if result.strength == "strong":
         return False
     if regime == RegimeStatus.DOWNTREND and result.direction == "bullish":
         return True

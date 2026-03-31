@@ -40,17 +40,21 @@ class OversoldConfluenceSignal(BaseSignal):
         bb_low = float(_bb_lower(df).iloc[-1])
 
         rsi_ok = rsi_val < 32
-        vol_ok = vol_ratio >= 2.0
+        vol_ok = vol_ratio >= 1.5
         bb_ok = price <= bb_low * 1.05
 
         if not (rsi_ok and vol_ok and bb_ok):
             return None
 
+        # "strong" = extreme oversold (RSI < 25) — bypasses regime gate as a bounce play.
+        # "moderate" = oversold but not extreme — suppressed during downtrend.
+        strength = "strong" if rsi_val < 25 else "moderate"
+
         return SignalResult(
             ticker=ticker,
             signal_name="Oversold Confluence",
             time_horizon=self.time_horizon,
-            strength="strong",
+            strength=strength,
             direction="bullish",
             conditions=[
                 f"RSI(14) = {rsi_val:.1f} (oversold < 32)",
@@ -76,17 +80,21 @@ class OverboughtConfluenceSignal(BaseSignal):
         bb_high = float(_bb_upper(df).iloc[-1])
 
         rsi_ok = rsi_val > 68
-        vol_ok = vol_ratio >= 2.0
+        vol_ok = vol_ratio >= 1.5
         bb_ok = price >= bb_high * 0.98
 
         if not (rsi_ok and vol_ok and bb_ok):
             return None
 
+        # "strong" = extreme overbought (RSI > 75) — bypasses regime gate.
+        # "moderate" = overbought but not extreme — suppressed during uptrend.
+        strength = "strong" if rsi_val > 75 else "moderate"
+
         return SignalResult(
             ticker=ticker,
             signal_name="Overbought Confluence",
             time_horizon=self.time_horizon,
-            strength="strong",
+            strength=strength,
             direction="bearish",
             conditions=[
                 f"RSI(14) = {rsi_val:.1f} (overbought > 68)",
