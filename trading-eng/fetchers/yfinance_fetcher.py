@@ -26,6 +26,15 @@ class YFinanceFetcher:
             "1d": 1440,
             "1wk": 1440,
         }
+        # Default lookback periods per interval.
+        # 1d needs ≥200 bars for the 200-day MA regime gate (~10 months of trading days).
+        # 1wk needs 2y for position signals. 15m capped at 60d by yfinance free tier.
+        self.default_periods = {
+            "15m": "60d",
+            "1h": "60d",
+            "1d": "1y",
+            "1wk": "2y",
+        }
 
     def _get_cache_path(self, ticker: str, interval: str) -> Path:
         safe_ticker = ticker.replace("-", "_").replace("/", "_")
@@ -67,6 +76,7 @@ class YFinanceFetcher:
                 logger.debug(f"Cache hit: {ticker}/{interval}")
                 return df
 
+        kwargs.setdefault("period", self.default_periods.get(interval, "1y"))
         logger.debug(f"Fetching {ticker}/{interval} from yfinance")
         try:
             df = yf.download(ticker, interval=interval, progress=False, **kwargs)
@@ -124,6 +134,8 @@ class YFinanceFetcher:
 
     def _fetch_chunk(self, tickers: list[str], interval: str, kwargs: dict) -> dict[str, pd.DataFrame]:
         """Download a batch of tickers in one yfinance call and split by ticker."""
+        kwargs = {**kwargs}
+        kwargs.setdefault("period", self.default_periods.get(interval, "1y"))
         chunk_result: dict[str, pd.DataFrame] = {}
         try:
             raw = yf.download(
