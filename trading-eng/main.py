@@ -75,9 +75,9 @@ async def run(mode: str) -> None:
     regime = gate.detect(spy_df)
     logger.info(f"Market regime: {regime.value}")
 
-    # Run screener
+    # Run screener — pass interval so signals are matched to the correct data resolution
     screener = Screener()
-    results = screener.run(data, regime=regime)
+    results = screener.run(data, regime=regime, interval=interval)
     logger.info(f"Signals fired: {len(results)}")
 
     # Dispatch alerts

@@ -14,12 +14,21 @@ class SignalResult:
     direction: str  # "bullish" | "bearish" | "neutral"
     conditions: list[str]  # list of condition strings that were met
     price: float  # current price at detection time
+    confidence_score: float = 0.0  # 0–100, higher = more conviction
+    # ATR-based trade levels (None for neutral/watch signals)
+    entry_low: Optional[float] = None
+    entry_high: Optional[float] = None
+    stop_loss: Optional[float] = None
+    target: Optional[float] = None
+    stop_pct: Optional[float] = None   # stop distance as % of price
+    target_pct: Optional[float] = None  # target distance as % of price
 
 
 class BaseSignal:
     """Base class for all signals. Subclasses must implement check()."""
     time_horizon: str  # override in subclass
     asset_classes: tuple[str, ...] = ()  # override in subclass
+    required_interval: str = "1d"  # data interval this signal expects — screener filters by this
 
     def check(self, ticker: str, df: pd.DataFrame) -> Optional[SignalResult]:
         """

@@ -5,6 +5,7 @@ from ta.trend import MACD
 
 from signals.base import BaseSignal, SignalResult
 from signals.registry import register_signal
+from signals.trade_levels import compute_trade_levels
 
 
 def _vwap(df: pd.DataFrame) -> float:
@@ -23,6 +24,7 @@ def _vol_ratio(df: pd.DataFrame) -> float:
 class IntradayMomentumSignal(BaseSignal):
     time_horizon = "intraday"
     asset_classes = ("stock", "etf")
+    required_interval = "15m"
 
     def check(self, ticker: str, df: pd.DataFrame) -> Optional[SignalResult]:
         if len(df) < 35 or not {"close", "volume"}.issubset(df.columns):
@@ -59,6 +61,7 @@ class IntradayMomentumSignal(BaseSignal):
         direction = "bullish" if macd_cross_bullish else "bearish"
         vwap_label = "above" if macd_cross_bullish else "below"
 
+        levels = compute_trade_levels(df, price, direction, atr_period=14, stop_atr_mult=1.5, rr_ratio=1.5)
         return SignalResult(
             ticker=ticker,
             signal_name="Intraday Momentum",
@@ -71,4 +74,10 @@ class IntradayMomentumSignal(BaseSignal):
                 f"Price ${price:.2f} {vwap_label} VWAP ${vwap:.2f}",
             ],
             price=round(price, 2),
+            entry_low=levels.entry_low if levels else None,
+            entry_high=levels.entry_high if levels else None,
+            stop_loss=levels.stop_loss if levels else None,
+            target=levels.target if levels else None,
+            stop_pct=levels.stop_pct if levels else None,
+            target_pct=levels.target_pct if levels else None,
         )

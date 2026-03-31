@@ -19,6 +19,7 @@ class Screener:
         self,
         data: dict[str, pd.DataFrame],
         regime: Optional[RegimeStatus],
+        interval: str = "1d",
     ) -> list[SignalResult]:
         """
         Evaluate all registered signals across all tickers in parallel.
@@ -30,7 +31,9 @@ class Screener:
         Returns:
             list of SignalResult for all triggered (non-suppressed) signals
         """
-        signals = get_signals()
+        # Only run signals that expect this interval — prevents swing signals
+        # firing on 15m data and intraday signals firing on daily data
+        signals = [s for s in get_signals() if s.required_interval == interval]
         eligible = {t: df for t, df in data.items() if not df.empty and len(df) >= 5}
 
         results: list[SignalResult] = []
