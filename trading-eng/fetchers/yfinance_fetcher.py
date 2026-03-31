@@ -1,5 +1,4 @@
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 import logging
@@ -123,12 +122,11 @@ class YFinanceFetcher:
         # Step 2: split stale tickers into chunks
         chunks = [stale[i : i + _BATCH_SIZE] for i in range(0, len(stale), _BATCH_SIZE)]
 
-        # Step 3: fetch chunks in parallel threads
-        with ThreadPoolExecutor(max_workers=min(len(chunks), 8)) as pool:
-            futures = {pool.submit(self._fetch_chunk, chunk, interval, kwargs): chunk for chunk in chunks}
-            for future in as_completed(futures):
-                chunk_result = future.result()
-                result.update(chunk_result)
+        # Step 3: fetch chunks sequentially — yfinance is not thread-safe;
+        # parallel calls corrupt shared internal state and silently drop tickers.
+        # The batch requests (100 tickers per call) already provide the main speedup.
+        for chunk in chunks:
+            result.update(self._fetch_chunk(chunk, interval, kwargs))
 
         return result
 
