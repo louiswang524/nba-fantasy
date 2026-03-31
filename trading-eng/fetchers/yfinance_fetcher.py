@@ -91,8 +91,10 @@ class YFinanceFetcher:
                 logger.warning(f"No data for {ticker}/{interval}")
                 return pd.DataFrame()
 
-            # Ensure consistent column names
-            df.columns = [c.lower() for c in df.columns]
+            # Flatten MultiIndex columns (yfinance returns these for single tickers in newer versions)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df.columns = [str(c).lower() for c in df.columns]
             self._save_cache(cache_path, df)
             return df
         except Exception as e:
